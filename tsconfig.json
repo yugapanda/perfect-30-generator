@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "declaration": true,
+        "outDir": "./dist",
+        "strict": true,
+        "module": "esnext",
+        "moduleResolution": "node",
+        "types": [
+            "node",
+            "jest"
+        ]
+    },
+}
