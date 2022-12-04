@@ -12,15 +12,16 @@ export type Staff = {
 
 export type Music = Staff[]
 
+export type MusicPartials = {
+    melodies: MelodySequence,
+    chords: ChordSequence,
+    tonalSeq: number[]
+}
 
-export const generate = (source: string) => {
-    const filteredText = source.split("")
-        .filter(x => Array.from(wordToFunc.keys()).includes(x))
-        .join("");
-
-    const groups = groupedText(filteredText);
-    const chords = generateChords(groups);
-
+export const makeMusicPartials = (chords: {
+    chord: Chord;
+    group: string[];
+}[]): MusicPartials => {
     let current: CurrentMelody = {
         melodyPitch: {
             pitch: 0,
@@ -47,24 +48,32 @@ export const generate = (source: string) => {
             tonalDiffs.push(nextMelody.tonalDiff);
         });
     });
+    return {
+        melodies: melodySequence,
+        chords: chords.map(x => x.chord),
+        tonalSeq: tonalDiffs
+    }
+}
 
-    return makeMusic(
-        melodySequence,
-        chords.map(x => x.chord),
-        tonalDiffs
-    )
+export const generate = (source: string) => {
+    const filteredText = source.split("")
+        .filter(x => Array.from(wordToFunc.keys()).includes(x))
+        .join("");
+
+    const groups = groupedText(filteredText);
+    const chords = generateChords(groups);
+    const musicPartials = makeMusicPartials(chords);
+
+
+    return makeMusic(musicPartials);
 
 }
 
-export const makeMusic = (
-    melodies: MelodySequence,
-    chords: ChordSequence,
-    tonalSeq: number[]
-): Music => {
+export const makeMusic = (musicPartials: MusicPartials): Music => {
 
-    const melodiesInStaff = grouped(melodies);
-    const tonalInStaff = grouped(tonalSeq);
-    return chords.map((chord, i) => {
+    const melodiesInStaff = grouped(musicPartials.melodies);
+    const tonalInStaff = grouped(musicPartials.tonalSeq);
+    return musicPartials.chords.map((chord, i) => {
         return {
             melodySeq: melodiesInStaff[i],
             chord,

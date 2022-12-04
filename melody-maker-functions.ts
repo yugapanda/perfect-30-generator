@@ -1,6 +1,6 @@
 import { Chord, chordToPitch } from "./chord-maker";
 import { changePitch, CurrentMelody, keepCurrent, MelodySequence, midiVelocityFit, nearPitchInChordVerFar, nearPitchInChordVerHigh, nearPitchInChordVerLow, nearPitchInChordVerNear } from "./melody-maker";
-
+import * as clone from "clone";
 
 export type NextMelody = {
     newCurrent: CurrentMelody,
@@ -75,7 +75,7 @@ export const caseD = (
             velocity: midiVelocityFit(current.melodyPitch.velocity - 10)
         }
     }
-    sequence.push({ ...sequence[sequence.length - 1], kind: "tie" });
+    sequence.push(newCurrent.melodyPitch);
     return {
         newCurrent,
         sequence,
@@ -110,7 +110,7 @@ export const caseE = (
 }
 
 /**
- * 発音せずに3度下行する, すでに発音されている音があれば伸ばす
+ * 発音せずに1度下行する, すでに発音されている音があれば伸ばす
  * @param current 
  * @param sequence 
  * @param chord 
@@ -123,11 +123,11 @@ export const caseF = (
 ): NextMelody => {
     const newCurrent: CurrentMelody = {
         ...current, melodyPitch: {
-            ...changePitch(current.melodyPitch, -3),
+            ...changePitch(current.melodyPitch, -1),
             kind: "tie",
         }
     }
-    sequence.push({ ...sequence[sequence.length - 1], kind: "tie" });
+    sequence.push(newCurrent.melodyPitch);
     return {
         newCurrent,
         sequence,
@@ -136,7 +136,7 @@ export const caseF = (
 }
 
 /**
- * 発音せずに3度上行する, すでに発音されている音があれば伸ばす
+ * 発音せずに1度上行する, すでに発音されている音があれば伸ばす
  * @param current 
  * @param sequence 
  * @param chord 
@@ -149,11 +149,11 @@ export const caseG = (
 ): NextMelody => {
     const newCurrent: CurrentMelody = {
         ...current, melodyPitch: {
-            ...changePitch(current.melodyPitch, 3),
+            ...changePitch(current.melodyPitch, 1),
             kind: "tie",
         }
     }
-    sequence.push({ ...sequence[sequence.length - 1], kind: "tie" });
+    sequence.push(newCurrent.melodyPitch);
     return {
         newCurrent,
         sequence,
@@ -179,7 +179,7 @@ export const caseH = (
             kind: "tie",
         }
     }
-    sequence.push({ ...sequence[sequence.length - 1], kind: "tie" });
+    sequence.push(newCurrent.melodyPitch);
     return {
         newCurrent,
         sequence,
@@ -231,7 +231,7 @@ export const caseR = (
             kind: "tie",
         }
     }
-    sequence.push({ ...sequence[sequence.length - 1], kind: "tie" });
+    sequence.push(newCurrent.melodyPitch);
     return {
         newCurrent,
         sequence,
@@ -240,7 +240,8 @@ export const caseR = (
 }
 
 /**
- * すでに発音されている音があれば、伸ばす
+ * 合計で5回出現した場合、転調する
+ * 休符とする
  * @param current 
  * @param sequence 
  * @param chord 
@@ -274,7 +275,7 @@ export const caseJ = (
         }
 
     sequence.push(newCurrent.melodyPitch);
-    const tonalDiff = (current.modulationTarget * 5) % 24
+    const tonalDiff = count >= 5 ? (current.modulationTarget * 5) % 24 : 0;
     return {
         newCurrent,
         sequence,
@@ -298,7 +299,7 @@ export const caseK = (
     sequence: MelodySequence,
     chord: Chord
 ): NextMelody => {
-    const pastAttacked = sequence.reverse().find(x => x.kind === "attack");
+    const pastAttacked = clone(sequence).reverse().find(x => x.kind === "attack");
     // 過去に発音された音が１つもなかった場合
     if (pastAttacked === undefined) {
         const newCurrent: CurrentMelody = {
@@ -312,13 +313,13 @@ export const caseK = (
         sequence.push(newCurrent.melodyPitch);
         return {
             newCurrent,
-            sequence,
+            sequence: clone(sequence),
             tonalDiff: 0
         }
     }
 
     // 1つ前の音が和音内の音だった場合
-    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(current.melodyPitch.pitch)) {
+    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(pastAttacked.pitch)) {
         // 1つ上の和音外の音が発音される
         const newCurrent: CurrentMelody = {
             ...current,
@@ -383,7 +384,7 @@ export const caseM = (
 
 /**
  * - 1つ前に発音された音が和音内の音だった場合  
- *  - 「今の音」の高さの和音内の音が発音される  
+ *  - 「１つ上」の高さの和音内の音が発音される  
  * - 1つ前に発音された音が和音外の音だった場合  
  *  - もっとも近い和音内の音が発音される  
  *  - 同じ距離に2つの和音内の音がある場合、開始音と逆方向の音が選択される  
@@ -397,7 +398,7 @@ export const caseN = (
     sequence: MelodySequence,
     chord: Chord
 ): NextMelody => {
-    const pastAttacked = sequence.reverse().find(x => x.kind === "attack");
+    const pastAttacked = clone(sequence).reverse().find(x => x.kind === "attack");
     // 過去に発音された音が１つもなかった場合
     if (pastAttacked === undefined) {
         const newCurrent: CurrentMelody = {
@@ -417,12 +418,12 @@ export const caseN = (
     }
 
     // 1つ前の音が和音内の音だった場合
-    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(current.melodyPitch.pitch)) {
+    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(pastAttacked.pitch)) {
         // 同じ高さの音が発音される
         const newCurrent: CurrentMelody = {
             ...current,
             melodyPitch: {
-                ...changePitch(current.melodyPitch, 0),
+                ...changePitch(current.melodyPitch, 1),
                 kind: "attack",
             }
         }
@@ -525,7 +526,7 @@ export const caseS = (
     sequence: MelodySequence,
     chord: Chord
 ): NextMelody => {
-    const pastAttacked = sequence.reverse().find(x => x.kind === "attack");
+    const pastAttacked = clone(sequence).reverse().find(x => x.kind === "attack");
     // 過去に発音された音が１つもなかった場合
     if (pastAttacked === undefined) {
         const newCurrent: CurrentMelody = {
@@ -545,12 +546,12 @@ export const caseS = (
     }
 
     // 1つ前の音が和音内の音だった場合
-    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(current.melodyPitch.pitch)) {
-        // 同じ高さの音が発音される
+    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(pastAttacked.pitch)) {
+        // 1つ下の音が発音される
         const newCurrent: CurrentMelody = {
             ...current,
             melodyPitch: {
-                ...changePitch(current.melodyPitch, 0),
+                ...changePitch(current.melodyPitch, -1),
                 kind: "attack",
             }
         }
@@ -597,7 +598,7 @@ export const caseT = (
     sequence: MelodySequence,
     chord: Chord
 ): NextMelody => {
-    const pastAttacked = sequence.reverse().find(x => x.kind === "attack");
+    const pastAttacked = clone(sequence).reverse().find(x => x.kind === "attack");
     // 過去に発音された音が１つもなかった場合
     if (pastAttacked === undefined) {
         const newCurrent: CurrentMelody = {
@@ -617,7 +618,7 @@ export const caseT = (
     }
 
     // 1つ前の音が和音内の音だった場合
-    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(current.melodyPitch.pitch)) {
+    if (chordToPitch.get(chord)?.pitchInBorrowedTonal?.includes(pastAttacked.pitch)) {
         // 1つ上の和音外の音が発音される
         const newCurrent: CurrentMelody = {
             ...current,

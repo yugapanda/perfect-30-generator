@@ -11,6 +11,14 @@ export type ChordSequence = Chord[];
  */
 export type Pitch = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+export const I = 0;
+export const II = 1;
+export const III = 2;
+export const IV = 3;
+export const V = 4;
+export const VI = 5;
+export const VII = 6;
+
 /**
  * どの調から借用されたかを、今の主調からの相対距離で示す型
  */

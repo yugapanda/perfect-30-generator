@@ -82,7 +82,7 @@ const constrain = (current: number, under: number, upper: number): number => {
  * @returns 
  */
 export const midiVelocityFit = (val: number) => {
-    return constrain(val, 10, 120);
+    return constrain(val, 30, 90);
 }
 
 /**
@@ -136,7 +136,7 @@ export const changePitch = (current: MelodyPitch, pitchAddition: PitchAddition):
     if (newPitch > 6) {
         return {
             ...current,
-            octave: current.octave + 1,
+            octave: constrain(current.octave + 1, 3, 6),
             pitch: (newPitch % 7) as Pitch
         }
     }
@@ -144,8 +144,8 @@ export const changePitch = (current: MelodyPitch, pitchAddition: PitchAddition):
     if (newPitch < 0) {
         return {
             ...current,
-            octave: current.octave - 1,
-            pitch: (6 + newPitch) as Pitch // newPitchは0より小さくなっているので、実質減算
+            octave: constrain(current.octave - 1, 3, 6),
+            pitch: (7 + newPitch) as Pitch // newPitchは0より小さくなっているので、実質減算
         }
 
     }

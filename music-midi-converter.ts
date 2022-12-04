@@ -1,4 +1,6 @@
+import { writeFileSync } from "fs";
 import { Track, ProgramChangeEvent, NoteEvent, Writer, Pitch, Duration } from "midi-writer-js";
+import { chordToPitch } from "./chord-maker";
 import { Music } from "./music";
 import { RealPitch, toRealPitch } from "./real-pitch";
 
@@ -133,9 +135,46 @@ const noteCodeTable = new Map<number, Pitch>([
     [126, "F#9"],
 ])
 
-export const convertToMidiFromMusic = (music: Music): void => {
-    const melodies = music.flatMap(staff => staff.melodySeq.map(melody => toRealPitch(melody, staff.tonal, staff.chord)));
+export const convertToMidiFromMusicMelody = (music: Music, targetPath: string): void => {
+    const melodies = music.flatMap(staff =>
+        staff.melodySeq.map(melody =>
+            toRealPitch(melody, staff.tonal, staff.chord)
+        )
+    );
+    const noteEvents = realPitchesToNoteEvent(melodies);
+    const track = new Track();
+    track.addEvent(noteEvents);
+    const write = new Writer(track);
+    const midi = write.buildFile();
+    writeFileSync(targetPath, midi, "binary");
 }
+
+export const convertToMidiFromMusicChord = (music: Music, targetPath: string): void => {
+    const chordRealPitches = music.map(staff => {
+        const chord = chordToPitch.get(staff.chord) ?? {
+            borrowedTonal: 0,
+            pitchInBorrowedTonal: [0, 2, 4]
+        };
+        return chord.pitchInBorrowedTonal.map(pitch =>
+            toRealPitch({ pitch, octave: 3, velocity: 50, kind: "attack" },
+                staff.tonal,
+                staff.chord
+            ))
+    });
+    const noteEvents: NoteEvent[] = chordRealPitches.map(pitches => {
+        return new NoteEvent({
+            pitch: pitches.map(x => noteCodeTable.get(x.realPitch) ?? "C-1"),
+            velocity: 50,
+            duration: "1"
+        })
+    });
+    const track = new Track();
+    track.addEvent(noteEvents);
+    const write = new Writer(track);
+    const midi = write.buildFile();
+    writeFileSync(targetPath, midi, "binary");
+}
+
 
 const makeNoteEvents = (acc: Array<NoteEvent>, now: RealPitch): Array<NoteEvent> => {
 
@@ -145,7 +184,7 @@ const makeNoteEvents = (acc: Array<NoteEvent>, now: RealPitch): Array<NoteEvent>
         acc.push(
             new NoteEvent({
                 pitch: noteCode,
-                duration: ["T16" as Duration],
+                duration: ["16" as Duration],
                 velocity: now.velocity
             })
         );
@@ -156,7 +195,7 @@ const makeNoteEvents = (acc: Array<NoteEvent>, now: RealPitch): Array<NoteEvent>
         acc.push(
             new NoteEvent({
                 pitch: noteCode,
-                duration: ["T16" as Duration],
+                duration: ["16" as Duration],
                 velocity: 0
             })
         );
@@ -167,7 +206,7 @@ const makeNoteEvents = (acc: Array<NoteEvent>, now: RealPitch): Array<NoteEvent>
     if (acc.length === 0) {
         acc.push(new NoteEvent({
             pitch: noteCode,
-            duration: ["T16" as Duration],
+            duration: ["16" as Duration],
             velocity: 0
         }));
         return acc;
@@ -176,11 +215,12 @@ const makeNoteEvents = (acc: Array<NoteEvent>, now: RealPitch): Array<NoteEvent>
     // kindがtieで、すでに音がある場合には、durationを足す
     const lastNote = acc[acc.length - 1];
     if (lastNote.duration instanceof Array) {
-        lastNote.duration.push("T16" as Duration);
+        lastNote.duration.push("16" as Duration);
     }
 
     return acc;
 
 }
 
-export const realPitchesToNoteEvent = (realPitches: RealPitch[]): NoteEvent[] => realPitches.reduce(makeNoteEvents, [])
+export const realPitchesToNoteEvent = (realPitches: RealPitch[]): NoteEvent[] =>
+    realPitches.reduce(makeNoteEvents, []);
